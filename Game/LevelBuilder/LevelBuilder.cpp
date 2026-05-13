@@ -10,52 +10,49 @@ using json = nlohmann::json;
 bool inputtingText = false;
 
 void SaveLevelToJson(std::string levelName = "testLevel") {
-	std::cout << "Saving " + levelName + " to json...\n";
-
-	json j;
-
-	auto now = std::chrono::system_clock::now();
-
-	j["test"] = std::format("{:%Y-%m-%d %H:%M:%S}", now);
-
-	std::ofstream output_file("../levels/" + levelName + ".json");
-	output_file << j.dump(1);
-	output_file.close();
-
-
-	std::cout << "Saved\n";
+	//	std::cout << "Saving " + levelName + " to json...\n";
+	//
+	//	json j;
+	//
+	//	auto now = std::chrono::system_clock::now();
+	//
+	//	j["test"] = std::format("{:%Y-%m-%d %H:%M:%S}", now);
+	//
+	//	std::ofstream output_file("../levels/" + levelName + ".json");
+	//	output_file << j.dump(1);
+	//	output_file.close();
+	//
+	//
+	//	std::cout << "Saved\n";
 }
-
-/* --- Methods --- */
-bool IsMouseInRectangle(sf::RectangleShape rect) {
-	std::cout << "aoiwsuht" << std::endl;
-
-	sf::Vector2i mousePos = sf::Mouse::getPosition();
-
-	sf::Vector2f rectPos = rect.getPosition();
-	sf::Vector2f rectSize = rect.getSize();
-
-	return
-		mousePos.x >= rectPos.x &&
-		mousePos.x <= rectPos.x + rectSize.x &&
-		mousePos.y >= rectPos.y &&
-		mousePos.y <= rectPos.y + rectSize.y;
-}
-
-
-/* --- Main --- */
-sf::RenderWindow window(sf::VideoMode({ 1920, 1080 }), "Level Builder");
-
-sf::RectangleShape rectangles[99];
 
 int main() {
+	sf::RenderWindow window(sf::VideoMode({ 1080, 1080 }), "Level Builder");
 	window.setFramerateLimit(60);
 
-	int rectanglesArrayLength = sizeof(rectangles) / sizeof(rectangles[0]);
-	int nextAvailableRect = 0;
-	sf::Vector2f rectDrawStartPos = { 0.f, 0.f }; // The top-left corner of the rectangle you're currently drawing
+	// Setup level variables
+	const int levelSize = 10;
+	const int tileSize = window.getSize().x / levelSize;
 
-	int cluh = 0;
+	int tileIDs[levelSize][levelSize];					// The numerical ID of the tile. This is passed to the game
+	int selectedTileID;									// The currently selected tile ID for placing
+	
+	sf::RectangleShape* tiles[levelSize][levelSize];	// The rectangleshape to visualize the grid
+
+	// Default grid color
+	sf::Color backgroundColor = sf::Color(50, 50, 50);
+
+	for (int y = 0; y < levelSize; y++) {
+		for (int x = 0; x < levelSize; x++) {
+			tiles[x][y] = new sf::RectangleShape(sf::Vector2f(tileSize, tileSize));
+
+			tiles[x][y]->setPosition(sf::Vector2f(x * tileSize, y * tileSize));
+
+			tiles[x][y]->setFillColor(backgroundColor);
+			tiles[x][y]->setOutlineThickness(1.0f);
+			tiles[x][y]->setOutlineColor(sf::Color::Black);
+		}
+	}
 
 	// The mouse press value on the previous frame
 	bool pMousePressed = false;
@@ -91,43 +88,31 @@ int main() {
 
 				userTextInput.setString("Name: " + userInput);
 			}
+
+			if (const auto* keyboardEvent = event->getIf<sf::Event::KeyPressed>()) {
+				switch (keyboardEvent->code) {
+				case sf::Keyboard::Key::Num1:
+					selectedTileID = 1;
+				}
+			}
 		}
 
-		sf::RectangleShape* nextRect = &rectangles[nextAvailableRect];
+		for (int y = 0; y < levelSize; y++) {
+			for (int x = 0; x < levelSize; x++) {
+				sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-		if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-			bool isMouseInNextRect = false;
+				// Check if the mouse is in the bounds of the square it's currently checking
+				if (tiles[x][y]->getGlobalBounds().contains(mousePos)) {
 
-			for (sf::RectangleShape rect : rectangles) {
-				if (IsMouseInRectangle(rect)) {
-					bool isMouseInNextRect = true;
-					std::cout << "twin" << std::endl;
-				}
-			}
+					tiles[x][y]->setFillColor(sf::Color(128, 128, 128));
 
-			// If this frame's LMB value is different than last frame's, execute. (onMousePressed type logic)
-			if (!pMousePressed) {
-				if (isMouseInNextRect) {
-					std::cout << "mouse in current rect" << std::endl;
-					break;
+					if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) { // LMB is being held
+						std::cout << std::to_string(x) + ", " + std::to_string(y) << std::endl;
+					}
 				} else {
-					rectDrawStartPos = (sf::Vector2f)sf::Mouse::getPosition(window);
-
-					nextRect->setPosition(rectDrawStartPos);
-					nextRect->setFillColor(sf::Color(0, 0, 0, 0));
-					nextRect->setOutlineThickness(10);
-					nextRect->setOutlineColor(sf::Color(255, 255, 255, 128));
+					tiles[x][y]->setFillColor(backgroundColor);
 				}
 			}
-			// LMB is being held here
-
-			if (!isMouseInNextRect) {
-				nextRect->setSize((sf::Vector2f)sf::Mouse::getPosition(window) - rectDrawStartPos);
-			}
-
-		} else if (pMousePressed) {	// If LMB released
-			nextAvailableRect = (nextAvailableRect + 1) % rectanglesArrayLength;
-			nextRect->setOutlineColor(sf::Color(255, 255, 255, 255));
 		}
 
 
@@ -149,8 +134,10 @@ int main() {
 
 		window.clear();
 
-		for (sf::RectangleShape rect : rectangles) { // Draw all the rectangles
-			window.draw(rect);
+		for (int x = 0; x < levelSize; x++) {
+			for (int y = 0; y < levelSize; y++) {
+				window.draw(*tiles[x][y]); // Dereference the pointer to draw the object
+			}
 		}
 
 		if (inputtingText) {	// Draw text input only when inputting text

@@ -70,12 +70,10 @@ int main() {
 		mouse_position = (sf::Vector2f)(sf::Mouse::getPosition() - ((sf::Vector2i)window.getSize() / 2));
 
 		window.setPosition({ (int)floor(mouse_position.x) ,(int)floor(mouse_position.y) });
-		windowSize.x = std::clamp(windowSize.x, 384.f, 1920.f);
-		windowSize.y = std::clamp(windowSize.y, 216.f, 1080.f);
 
 		window.setSize({
-			(unsigned int)std::clamp(windowSize.x, 200.f, 1920.f),
-			(unsigned int)std::clamp(windowSize.y, 100.f, 1080.f)
+			(unsigned int)std::clamp(windowSize.x, 384.f, 1920.f),
+			(unsigned int)std::clamp(windowSize.y, 216.f, 1080.f)
 			});
 
 		sf::FloatRect visibleArea({ 0, 0 }, (sf::Vector2f)window.getSize());
