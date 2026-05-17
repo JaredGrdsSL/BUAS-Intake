@@ -62,11 +62,11 @@ int main() {
 	int tileSize = 108;
 
 	// Setup the window
-	sf::RenderWindow window(sf::VideoMode({ 1080, 1080 }), "Squorb");
+	sf::RenderWindow window(sf::VideoMode({ 400, 400 }), "Squorb");
 	sf::Vector2f windowSize = (sf::Vector2f)window.getSize();
 	window.setFramerateLimit(60);
 
-	sf::Vector2f mouse_position;
+	sf::Vector2f globalMousePos;
 
 	// Setup the level grid
 	std::vector<sf::RectangleShape> levelTiles;
@@ -76,6 +76,7 @@ int main() {
 	};
 
 	sf::Vector2f startingTilePos;	// The position of the starting tile, helpful for spawning the squorbs
+	int endingTileIndex;			// The index of the ending tile, index instead of vector because it needs to reference levelTiles
 
 	for (int i = 0; i < levelSize; i++) {
 		for (int j = 0; j < levelSize; j++) {
@@ -90,17 +91,19 @@ int main() {
 			case 0: default:
 				tempRect.setFillColor(sf::Color(40, 60, 50));
 				tempRect.setOutlineColor(sf::Color(128, 128, 128));
-
-				startingTilePos = levelGridPos + sf::Vector2f((float)i * tileSize, (float)j * tileSize);
 				break;
 			case 1:
 				tempRect.setFillColor(sf::Color(128, 255, 128));
+
+				startingTilePos = levelGridPos + sf::Vector2f((float)j * tileSize, (float)i * tileSize);
 				break;
 			case 2:
 				tempRect.setFillColor(sf::Color(60, 60, 40));
 				break;
 			case 3:
 				tempRect.setFillColor(sf::Color(128, 50, 50));
+
+				endingTileIndex = j + (i * levelSize);
 				break;
 			}
 
@@ -123,6 +126,10 @@ int main() {
 	auto squorbSize = 25.f;
 	sf::Vector2f squorbStartPos(startingTilePos + sf::Vector2f{ (float)tileSize / 2.f, (float)tileSize / 2.f });
 
+	// Tower variables
+	std::vector<Tower> towers;
+	auto towerSize = 30.f;
+
 	// Create a font
 	sf::Font defaultFont;
 	if (!defaultFont.openFromFile("C:/Windows/Fonts/Arial.ttf")) {
@@ -144,7 +151,13 @@ int main() {
 
 
 	while (window.isOpen()) {
+		// Window refresh
+		window.clear();
 
+		// Draw this first so it's on the "background"
+		for (int i = 0; i < levelSize * levelSize; i++) {
+			window.draw(levelTiles[i]);
+		}
 
 		// Setup the delta seconds between frames and the fps value
 		sf::Time dt = deltaClock.restart();
@@ -154,9 +167,9 @@ int main() {
 
 		fpsText.setString("FPS: " + std::to_string((int)fps));
 
-		mouse_position = (sf::Vector2f)(sf::Mouse::getPosition() - ((sf::Vector2i)window.getSize() / 2));
+		globalMousePos = (sf::Vector2f)(sf::Mouse::getPosition() - ((sf::Vector2i)window.getSize() / 2));
 
-		window.setPosition({ (int)floor(mouse_position.x) ,(int)floor(mouse_position.y) });
+		window.setPosition({ (int)floor(globalMousePos.x) ,(int)floor(globalMousePos.y) });
 
 		window.setSize({
 			(unsigned int)std::clamp(windowSize.x, 384.f, 1920.f),
@@ -165,6 +178,27 @@ int main() {
 
 		sf::FloatRect visibleArea({ 0, 0 }, (sf::Vector2f)window.getSize());
 		window.setView(sf::View(visibleArea));
+
+		// Poll events
+		while (const std::optional event = window.pollEvent()) {
+			if (event->is < sf::Event::Closed>() || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+				window.close();
+			}
+
+			if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
+				if (mousePressed->button == sf::Mouse::Button::Left) {
+					// Tower placement logic
+					for (int i = 0; i < levelTiles.size(); i++) {
+						if (levelTiles[i].getGlobalBounds().contains((sf::Vector2f)sf::Mouse::getPosition(window))) {
+							if (tileIDs[i % levelSize][i / levelSize] == 0) {	// Allow tower placement only if the tileID is 0 (default)
+								Tower tower(towerSize, (sf::Vector2f)sf::Mouse::getPosition(), sf::Color::Yellow, squorbs);
+								towers.push_back(tower);
+							}
+						}
+					}
+				}
+			}
+		}
 
 		// Set global positions
 		for (int i = 0; i < levelSize * levelSize; i++) {
@@ -181,34 +215,37 @@ int main() {
 			for (Squorb& squorb : squorbs) {
 				squorb.walkAlongPath(delta, (sf::Vector2f)window.getPosition(), (float)tileSize);	// A sort of "update" function for the squorb
 
-				if (levelTiles[levelTiles.size() - 1].getGlobalBounds().contains(squorb.getPosition())) {	// If on the final tile
+				if (levelTiles[endingTileIndex].getGlobalBounds().contains(squorb.getPosition())) {	// If on the final tile
 					squorb.kill();	// Simply marks it for death, killing is done at the end of main
 				}
 			}
 		}
 
+		// Handle Towers
+		if (towers.size() > 0) {
+			for (Tower& tower : towers) {
+				tower.update(delta, window);
+			}
+		}
+
 		// Spawn a squorb every few seconds
 		if ((int)std::floorf(t) % 5 == 1 && (int)std::floorf(t) != pT) {
-			Squorb squorb(squorbSize, squorbStartPos, sf::Color::White, squorbPath);
+			Squorb squorb(squorbSize, squorbStartPos, sf::Color::Black, squorbPath);
 			squorbs.push_back(squorb);
 		}
 		pT = t;
 
-		while (const std::optional event = window.pollEvent()) {
-			if (event->is < sf::Event::Closed>() || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
-				window.close();
-			}
-		}
-
-		window.clear();
-		// Draw this first so it's on the "background"
-		for (int i = 0; i < levelSize * levelSize; i++) {
-			window.draw(levelTiles[i]);
-		}
-
+		// Draw squorbs
 		if (squorbs.size() > 0) {
 			for (Squorb squorb : squorbs) {
 				squorb.draw(window);
+			}
+		}
+
+		// Draw towers
+		if (towers.size() > 0) {
+			for (Tower tower : towers) {
+				tower.draw(window);
 			}
 		}
 

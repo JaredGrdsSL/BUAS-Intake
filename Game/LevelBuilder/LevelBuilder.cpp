@@ -179,7 +179,7 @@ int main() {
 			}
 		}
 
-		int pathCount = 0;	// Variable that'll increment for
+		int pathCount = 0;	// Variable that'll increment for each new path tile (for the floodfill algortihm)
 		// Loop over all the tiles on screen
 		for (int y = 0; y < levelSize; y++) {
 			for (int x = 0; x < levelSize; x++) {
